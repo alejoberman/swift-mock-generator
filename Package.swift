@@ -1,26 +1,42 @@
-// swift-tools-version: 6.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
-    name: "SwiftMocksGenerator",
+    name: "SwiftMockGenerator",
+    platforms: [.macOS(.v11), .iOS(.v15)],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "SwiftMocksGenerator",
-            targets: ["SwiftMocksGenerator"]
-        ),
+        .executable(name: "mockgen", targets: ["MockGeneratorCLI"]),
+        .library(name: "MockRuntime", targets: ["MockRuntime"]),
+        .plugin(name: "MockGeneratorCommandPlugin", targets: ["MockGeneratorCommandPlugin"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .target(
-            name: "SwiftMocksGenerator"
+        .executableTarget(name: "MockGeneratorCLI", dependencies: ["MockGeneratorCore"]),
+        .plugin(
+            name: "MockGeneratorCommandPlugin",
+            capability: .command(
+                intent: .custom(verb: "generate-mocks", description: "Generate protocol mocks from a Swift source file or directory"),
+                permissions: [.writeToPackageDirectory(reason: "Generated mock source files are written into the package so they can be compiled by its test target.")]
+            ),
+            dependencies: ["MockGeneratorCLI"]
         ),
-        .testTarget(
-            name: "SwiftMocksGeneratorTests",
-            dependencies: ["SwiftMocksGenerator"]
-        ),
+        .target(name: "MockGeneratorCodeDOM"),
+        .target(name: "MockGeneratorEmitter", dependencies: [
+            "MockGeneratorCodeDOM",
+            .product(name: "SwiftSyntax", package: "swift-syntax"),
+            .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+        ]),
+        .target(name: "MockGeneratorCore", dependencies: [
+            "MockGeneratorCodeDOM", "MockGeneratorEmitter",
+            .product(name: "SwiftParser", package: "swift-syntax"),
+            .product(name: "SwiftSyntax", package: "swift-syntax")
+        ]),
+        .target(name: "MockRuntime"),
+        .testTarget(name: "MocksGeneratorTests", dependencies: [
+            "MockGeneratorCore", "MockGeneratorCodeDOM", "MockRuntime"
+        ], path: "Tests/MockGeneratorTests"),
+        .testTarget(name: "MockRuntimeTests", dependencies: ["MockRuntime"])
     ]
 )
