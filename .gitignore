@@ -8,3 +8,5 @@ Stubs/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+Gemfile
+Gemfile.lock
